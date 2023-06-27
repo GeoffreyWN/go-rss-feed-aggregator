@@ -3,13 +3,15 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
+	"github.com/go-chi/chi"
+	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
 )
 
 func main() {
-	fmt.Println("Lets start already!!")
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -18,6 +20,37 @@ func main() {
 
 	if portString == "" {
 		log.Fatal("PORT is missing in .env file")
+	}
+
+	router := chi.NewRouter()
+
+	router.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"https://*", "http://*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"*"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: false,
+		MaxAge:           300,
+	}))
+
+	v1Router := chi.NewRouter()
+
+	v1Router.Get("/health", handlerReadiness)
+
+	router.Mount("/v1", v1Router)
+
+	server := &http.Server{
+		Handler: router,
+		Addr:    ":" + portString,
+	}
+	log.Printf("Server starting on port %v", portString)
+
+	err = server.ListenAndServe()
+
+	fmt.Println("Err", err)
+
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	fmt.Println("Port:", portString)
